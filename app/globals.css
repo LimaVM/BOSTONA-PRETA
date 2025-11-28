@@ -220,6 +220,11 @@ html {
   border: 1px solid rgba(229, 57, 53, 0.1);
 }
 
+/* Hide the Next.js DevTools watermark badge */
+[data-next-badge-root] {
+  display: none !important;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
