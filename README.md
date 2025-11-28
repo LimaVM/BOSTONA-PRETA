@@ -18,13 +18,13 @@ Your project is live at:
 
 ## Self-hosting on Ubuntu 24 + Node.js 22 with HTTPS (vegaconsultoria.com)
 
-Use these steps to run the site on your own VPS with Node.js 22 and Certbot-managed SSL:
+Use these steps to run the site directly with a Node.js HTTPS server (no Nginx):
 
 1. **Point DNS to the VPS**
    - Create an `A` record for `vegaconsultoria.com` (and `www` if desired) pointing to your VPS public IP.
 
 2. **Install system dependencies**
-   - `sudo apt update && sudo apt install -y nginx git ufw`
+   - `sudo apt update && sudo apt install -y git ufw certbot`
    - Install Node.js 22 from NodeSource:
      ```bash
      curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
@@ -44,8 +44,28 @@ Use these steps to run the site on your own VPS with Node.js 22 and Certbot-mana
    pnpm build
    ```
 
-4. **Run the app as a service (Node.js server on port 3000)**
-   - Create a systemd service at `/etc/systemd/system/vegaconsultoria.service`:
+4. **Obtain SSL certificates with Certbot (standalone)**
+   - Stop any service using port 80 before issuing certificates.
+   - Issue certificates for both roots: `sudo certbot certonly --standalone -d vegaconsultoria.com -d www.vegaconsultoria.com`
+   - Certificates will be placed under `/etc/letsencrypt/live/vegaconsultoria.com/`.
+   - Auto-renew is handled by Certbot’s timer. You can test renewal with:
+     ```bash
+     sudo systemctl status certbot.timer
+     sudo certbot renew --dry-run
+     ```
+
+5. **Create your environment file for HTTPS**
+   - Copy the sample: `cp .env.example .env`
+   - Ensure the certificate paths match the Certbot output (defaults in the sample use `/etc/letsencrypt/live/vegaconsultoria.com/`).
+   - Set `PORT=443` if you want to listen directly on HTTPS; set `HOST=0.0.0.0` to listen on all interfaces.
+
+6. **Allow Node.js to bind to port 443 (once)**
+   ```bash
+   sudo setcap 'cap_net_bind_service=+ep' $(which node)
+   ```
+
+7. **Run the app as a systemd service (HTTPS via server.js)**
+   - Create `/etc/systemd/system/vegaconsultoria.service`:
      ```ini
      [Unit]
      Description=Vegaconsultoria Next.js app
@@ -57,39 +77,15 @@ Use these steps to run the site on your own VPS with Node.js 22 and Certbot-mana
      ExecStart=/usr/bin/pnpm start
      Restart=always
      Environment=NODE_ENV=production
+     EnvironmentFile=/var/www/vegaconsultoria/.env
 
      [Install]
      WantedBy=multi-user.target
      ```
    - Enable and start: `sudo systemctl enable --now vegaconsultoria`.
 
-5. **Configure Nginx reverse proxy**
-   - Create `/etc/nginx/sites-available/vegaconsultoria.com`:
-     ```nginx
-     server {
-       server_name vegaconsultoria.com www.vegaconsultoria.com;
-
-       location / {
-         proxy_pass http://127.0.0.1:3000;
-         proxy_http_version 1.1;
-         proxy_set_header Upgrade $http_upgrade;
-         proxy_set_header Connection "upgrade";
-         proxy_set_header Host $host;
-         proxy_set_header X-Real-IP $remote_addr;
-         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-         proxy_set_header X-Forwarded-Proto $scheme;
-       }
-     }
-     ```
-   - Enable and test: `sudo ln -s /etc/nginx/sites-available/vegaconsultoria.com /etc/nginx/sites-enabled/` then `sudo nginx -t` and `sudo systemctl reload nginx`.
-
-6. **Obtain and renew SSL certificates with Certbot**
-   - Install Certbot for Nginx: `sudo apt install -y certbot python3-certbot-nginx`.
-   - Issue certificates: `sudo certbot --nginx -d vegaconsultoria.com -d www.vegaconsultoria.com` (follow prompts for redirects).
-   - Auto-renew is configured by Certbot’s systemd timer; verify with `sudo systemctl status certbot.timer`.
-
-7. **Firewall hardening (optional)**
-   - Allow SSH/HTTP/HTTPS: `sudo ufw allow OpenSSH && sudo ufw allow 'Nginx Full' && sudo ufw enable`.
+8. **Firewall hardening (optional)**
+   - Allow SSH/HTTP/HTTPS: `sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw enable`.
 
 ## Build your app
 
