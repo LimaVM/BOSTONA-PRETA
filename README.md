@@ -59,10 +59,10 @@ Use these steps to run the site directly with a Node.js HTTPS server (no Nginx):
    - Ensure the certificate paths match the Certbot output (defaults in the sample use `/etc/letsencrypt/live/vegaconsultoria.com/`).
    - Set `PORT=443` if you want to listen directly on HTTPS; set `HOST=0.0.0.0` to listen on all interfaces.
 
-6. **Allow Node.js to bind to port 443 (once)**
-   ```bash
-   sudo setcap 'cap_net_bind_service=+ep' $(which node)
-   ```
+6. **Allow Node.js to bind to ports 80/443 (once)**
+  ```bash
+  sudo setcap 'cap_net_bind_service=+ep' $(which node)
+  ```
 
 7. **Run the app as a systemd service (HTTPS via server.js)**
    - Create `/etc/systemd/system/vegaconsultoria.service`:
@@ -84,7 +84,18 @@ Use these steps to run the site directly with a Node.js HTTPS server (no Nginx):
      ```
    - Enable and start: `sudo systemctl enable --now vegaconsultoria`.
 
-8. **Firewall hardening (optional)**
+8. **Security hardening**
+   - Set `ALLOWED_HOSTS` in `.env` to restrict inbound Host headers to your domain (prevents host-header attacks).
+   - Adjust `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_MS` in `.env` to throttle abusive IPs (defaults allow 120 requests/minute).
+   - Keep Certbot auto-renewal active so TLS stays valid; the server enforces TLS 1.2+ and starts an HTTP→HTTPS redirect helper on port 80.
+   - Firewall: allow SSH/HTTP/HTTPS and drop the rest: `sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw enable`.
+
+9. **Security headers**
+   - A global middleware adds HSTS, CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy, and other protective headers for every response.
+
+10. **Rate limit & host validation**
+    - The custom Node server drops requests with unexpected Host headers and returns HTTP 429 when an IP exceeds the configured rate limits.
+
    - Allow SSH/HTTP/HTTPS: `sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw enable`.
 
 ## Build your app
