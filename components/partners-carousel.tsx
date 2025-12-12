@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 
 const partners = [
@@ -46,14 +46,26 @@ const allPartners = [...partners, ...partners, ...partners]
 
 export default function PartnersCarousel() {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [reduceMotion, setReduceMotion] = useState(false)
 
   useEffect(() => {
     const scrollContainer = scrollRef.current
-    if (!scrollContainer) return
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const update = () => setReduceMotion(media.matches || window.innerWidth < 768)
+    update()
+    media.addEventListener("change", update)
+    window.addEventListener("resize", update)
+
+    if (!scrollContainer || reduceMotion) {
+      return () => {
+        media.removeEventListener("change", update)
+        window.removeEventListener("resize", update)
+      }
+    }
 
     let animationId: number
     let scrollPosition = 0
-    const scrollSpeed = 0.5
+    const scrollSpeed = 0.4
 
     const animate = () => {
       scrollPosition += scrollSpeed
@@ -80,8 +92,10 @@ export default function PartnersCarousel() {
       cancelAnimationFrame(animationId)
       scrollContainer.removeEventListener("mouseenter", handleMouseEnter)
       scrollContainer.removeEventListener("mouseleave", handleMouseLeave)
+      media.removeEventListener("change", update)
+      window.removeEventListener("resize", update)
     }
-  }, [])
+  }, [reduceMotion])
 
   return (
     <section className="py-16 relative overflow-hidden border-y border-gray-800/50">
@@ -102,19 +116,23 @@ export default function PartnersCarousel() {
         </div>
 
         <div className="relative">
-          <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
-          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+          <div className="absolute left-0 top-0 bottom-0 w-24 sm:w-32 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-24 sm:w-32 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
 
-          <div ref={scrollRef} className="flex gap-8 overflow-x-hidden py-8" style={{ scrollBehavior: "auto" }}>
-            {allPartners.map((partner, index) => (
-              <div key={`${partner.name}-${index}`} className="flex-shrink-0 group">
-                <div className="w-56 h-32 flex items-center justify-center p-6 rounded-2xl bg-white border border-gray-200 shadow-lg transition-all duration-300 hover:shadow-2xl hover:scale-105 hover:border-[#e53935]/50">
+          <div
+            ref={scrollRef}
+            className={`py-8 ${reduceMotion ? "grid grid-cols-2 sm:grid-cols-3 gap-4" : "flex gap-8 overflow-x-hidden"}`}
+            style={{ scrollBehavior: "auto" }}
+          >
+            {(reduceMotion ? partners : allPartners).map((partner, index) => (
+              <div key={`${partner.name}-${index}`} className={reduceMotion ? "flex" : "flex-shrink-0 group"}>
+                <div className="w-full sm:w-48 h-28 sm:h-32 flex items-center justify-center p-4 sm:p-6 rounded-2xl bg-white border border-gray-200 shadow-lg transition-all duration-300 hover:shadow-2xl hover:scale-105 hover:border-[#e53935]/50">
                   <Image
                     src={partner.logo || "/placeholder.svg"}
                     alt={`${partner.name} logo`}
                     width={180}
                     height={80}
-                    className="object-contain max-h-20"
+                    className="object-contain max-h-16 sm:max-h-20 w-full"
                   />
                 </div>
               </div>

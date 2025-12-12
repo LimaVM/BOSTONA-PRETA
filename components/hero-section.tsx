@@ -10,9 +10,20 @@ export default function HeroSection() {
   const [isVisible, setIsVisible] = useState(false)
   const [typedText, setTypedText] = useState("")
   const fullText = "Garantimos estabilidade e velocidade para seus assinantes."
+  const [reduceMotion, setReduceMotion] = useState(false)
 
   useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const update = () => setReduceMotion(media.matches)
+    update()
+    media.addEventListener("change", update)
+
     setIsVisible(true)
+    if (media.matches) {
+      setTypedText(fullText)
+      return () => media.removeEventListener("change", update)
+    }
+
     let i = 0
     const typingInterval = setInterval(() => {
       if (i < fullText.length) {
@@ -22,26 +33,36 @@ export default function HeroSection() {
         clearInterval(typingInterval)
       }
     }, 40)
-    return () => clearInterval(typingInterval)
+
+    return () => {
+      clearInterval(typingInterval)
+      media.removeEventListener("change", update)
+    }
   }, [])
 
   return (
-    <section id="inicio" className="min-h-screen pt-32 pb-20 relative overflow-hidden">
+    <section id="inicio" className="min-h-screen pt-28 sm:pt-32 pb-16 sm:pb-20 relative overflow-hidden">
       {/* Animated background elements */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-50" />
-      <div className="absolute top-20 left-10 w-72 h-72 bg-[#e53935]/10 rounded-full blur-[100px] animate-pulse" />
-      <div
-        className="absolute bottom-20 right-10 w-96 h-96 bg-[#ff6f61]/10 rounded-full blur-[120px] animate-pulse"
-        style={{ animationDelay: "1s" }}
-      />
+      <div className="absolute inset-0 bg-grid-pattern opacity-40" />
+      {!reduceMotion && (
+        <>
+          <div className="absolute top-10 sm:top-20 left-6 sm:left-10 w-60 sm:w-72 h-60 sm:h-72 bg-[#e53935]/10 rounded-full blur-[100px] motion-safe:animate-pulse" />
+          <div
+            className="absolute bottom-10 sm:bottom-20 right-4 sm:right-10 w-72 sm:w-96 h-72 sm:h-96 bg-[#ff6f61]/10 rounded-full blur-[120px] motion-safe:animate-pulse"
+            style={{ animationDelay: "1s" }}
+          />
+        </>
+      )}
 
       {/* Scan line effect */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute w-full h-[2px] bg-gradient-to-r from-transparent via-[#e53935]/30 to-transparent animate-[scan-line_4s_linear_infinite]" />
-      </div>
+      {!reduceMotion && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute w-full h-[2px] bg-gradient-to-r from-transparent via-[#e53935]/30 to-transparent animate-[scan-line_4s_linear_infinite]" />
+        </div>
+      )}
 
-      <div className="container mx-auto px-6 relative z-10">
-        <div className="grid lg:grid-cols-2 gap-12 items-center min-h-[80vh]">
+      <div className="container mx-auto px-4 sm:px-6 relative z-10">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-12 items-center min-h-[75vh]">
           {/* Content */}
           <div
             className={`space-y-8 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
