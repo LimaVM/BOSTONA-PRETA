@@ -173,6 +173,15 @@ html {
   }
 }
 
+@keyframes globe-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .animate-float {
   animation: float 4s ease-in-out infinite;
 }
@@ -182,6 +191,9 @@ html {
 }
 .animate-rotate-slow {
   animation: rotate-slow 30s linear infinite;
+}
+.animate-globe-spin {
+  animation: globe-spin 32s linear infinite;
 }
 
 /* Grid background pattern */
@@ -218,6 +230,11 @@ html {
 .glass-card {
   background: linear-gradient(135deg, rgba(17, 17, 17, 0.9) 0%, rgba(10, 10, 10, 0.95) 100%);
   border: 1px solid rgba(229, 57, 53, 0.1);
+}
+
+/* Hide the Next.js DevTools watermark badge */
+[data-next-badge-root] {
+  display: none !important;
 }
 
 /* Custom scrollbar */

@@ -14,21 +14,27 @@ interface Particle {
 
 export default function ParticlesBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [isLowPerf, setIsLowPerf] = useState(false)
+  const [shouldReduce, setShouldReduce] = useState(false)
 
   useEffect(() => {
     const checkPerformance = () => {
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      const lowCpu = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4
+      const smallScreen = window.innerWidth < 768
+
+      if (prefersReducedMotion || lowCpu || smallScreen) {
+        setShouldReduce(true)
+        return true
+      }
+
       const canvas = document.createElement("canvas")
       const gl = canvas.getContext("webgl")
       if (!gl) {
-        setIsLowPerf(true)
+        setShouldReduce(true)
         return true
       }
-      // Verifica se é mobile ou tem pouca memória
-      if (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) {
-        setIsLowPerf(true)
-        return true
-      }
+
+      setShouldReduce(false)
       return false
     }
 
@@ -50,8 +56,8 @@ export default function ParticlesBackground() {
 
     const createParticles = () => {
       particles = []
-      const baseCount = lowPerf ? 15 : 30
-      const particleCount = Math.min(baseCount, Math.floor((canvas.width * canvas.height) / 40000))
+      const baseCount = lowPerf ? 10 : 24
+      const particleCount = Math.min(baseCount, Math.floor((canvas.width * canvas.height) / 60000))
 
       for (let i = 0; i < particleCount; i++) {
         particles.push({
@@ -113,16 +119,22 @@ export default function ParticlesBackground() {
     createParticles()
     drawParticles()
 
-    window.addEventListener("resize", () => {
+    const handleResize = () => {
       resize()
       createParticles()
-    })
+    }
+
+    window.addEventListener("resize", handleResize)
 
     return () => {
       cancelAnimationFrame(animationId)
-      window.removeEventListener("resize", resize)
+      window.removeEventListener("resize", handleResize)
     }
   }, [])
+
+  if (shouldReduce) {
+    return <div aria-hidden className="fixed inset-0 pointer-events-none z-0 bg-gradient-to-b from-[#0a0a0a] to-[#050505]" />
+  }
 
   return (
     <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-0" style={{ background: "transparent" }} />

@@ -16,6 +16,88 @@ Your project is live at:
 
 **[https://vercel.com/denilzalimalopes-7571s-projects/v0-vegan-network-clone](https://vercel.com/denilzalimalopes-7571s-projects/v0-vegan-network-clone)**
 
+## Self-hosting on Ubuntu 24 + Node.js 22 with HTTPS (vegaconsultoria.com)
+
+Use these steps to run the site directly with a Node.js HTTPS server (no Nginx):
+
+1. **Point DNS to the VPS**
+   - Create an `A` record for `vegaconsultoria.com` (and `www` if desired) pointing to your VPS public IP.
+
+2. **Install system dependencies**
+   - `sudo apt update && sudo apt install -y git ufw certbot`
+   - Install Node.js 22 from NodeSource:
+     ```bash
+     curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+     sudo apt install -y nodejs
+     ```
+   - Install `pnpm` globally for faster installs:
+     ```bash
+     sudo corepack enable
+     corepack prepare pnpm@latest --activate
+     ```
+
+3. **Clone and build the app**
+   ```bash
+   git clone https://github.com/<your-account>/BOSTONA-PRETA.git /var/www/vegaconsultoria
+   cd /var/www/vegaconsultoria
+   pnpm install --frozen-lockfile
+   pnpm build
+   ```
+
+4. **Obtain SSL certificates with Certbot (standalone)**
+   - Stop any service using port 80 before issuing certificates.
+   - Issue certificates for both roots: `sudo certbot certonly --standalone -d vegaconsultoria.com -d www.vegaconsultoria.com`
+   - Certificates will be placed under `/etc/letsencrypt/live/vegaconsultoria.com/`.
+   - Auto-renew is handled by Certbot’s timer. You can test renewal with:
+     ```bash
+     sudo systemctl status certbot.timer
+     sudo certbot renew --dry-run
+     ```
+
+5. **Create your environment file for HTTPS**
+   - Copy the sample: `cp .env.example .env`
+   - Ensure the certificate paths match the Certbot output (defaults in the sample use `/etc/letsencrypt/live/vegaconsultoria.com/`).
+   - Set `PORT=443` if you want to listen directly on HTTPS; set `HOST=0.0.0.0` to listen on all interfaces.
+
+6. **Allow Node.js to bind to ports 80/443 (once)**
+  ```bash
+  sudo setcap 'cap_net_bind_service=+ep' $(which node)
+  ```
+
+7. **Run the app as a systemd service (HTTPS via server.js)**
+   - Create `/etc/systemd/system/vegaconsultoria.service`:
+     ```ini
+     [Unit]
+     Description=Vegaconsultoria Next.js app
+     After=network.target
+
+     [Service]
+     Type=simple
+     WorkingDirectory=/var/www/vegaconsultoria
+     ExecStart=/usr/bin/pnpm start
+     Restart=always
+     Environment=NODE_ENV=production
+     EnvironmentFile=/var/www/vegaconsultoria/.env
+
+     [Install]
+     WantedBy=multi-user.target
+     ```
+   - Enable and start: `sudo systemctl enable --now vegaconsultoria`.
+
+8. **Security hardening**
+   - Set `ALLOWED_HOSTS` in `.env` to restrict inbound Host headers to your domain (prevents host-header attacks).
+   - Adjust `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_MS` in `.env` to throttle abusive IPs (defaults allow 120 requests/minute).
+   - Keep Certbot auto-renewal active so TLS stays valid; the server enforces TLS 1.2+ and starts an HTTP→HTTPS redirect helper on port 80.
+   - Firewall: allow SSH/HTTP/HTTPS and drop the rest: `sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw enable`.
+
+9. **Security headers**
+   - A global middleware adds HSTS, CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy, and other protective headers for every response.
+
+10. **Rate limit & host validation**
+    - The custom Node server drops requests with unexpected Host headers and returns HTTP 429 when an IP exceeds the configured rate limits.
+
+   - Allow SSH/HTTP/HTTPS: `sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw enable`.
+
 ## Build your app
 
 Continue building your app on:
